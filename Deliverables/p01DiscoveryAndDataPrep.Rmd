@@ -53,6 +53,8 @@ head(adult_train)
 str(adult_train)
 ```
 
+## Variables
+
 We see that the variables age, fnlwgt, education_num, capital_gain, capital_loss, and hours_per_week are of type integer. The other variables are factors with differing levels. To see what levels of each factor we have, we provide a function called get_factor_levels() which takes a dataframe as an argument, identifies the factor variables, and outputs the levels of each factor variable it finds.
 ```{r}
 get_factor_levels <- function(mydata){
@@ -356,6 +358,6 @@ We drop the unused level Never-worked from the factor variable workclass.
 adult_test$workclass <- droplevels(adult_test$workclass)
 ```
 
-#Research Questions and Other Implications
+# Research Questions and Other Implications
 
 How would a company that makes high-end products identify customers to target for their products, or potentially customer rich markets? Is using census data an effective way to accomplish these goals?  This is a sort of market research question that could be answered in a project like this.
