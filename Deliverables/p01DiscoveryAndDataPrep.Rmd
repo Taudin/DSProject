@@ -360,4 +360,4 @@ adult_test$workclass <- droplevels(adult_test$workclass)
 
 # Research Questions and Other Implications
 
-How would a company that makes high-end products identify customers to target for their products, or potentially customer rich markets? Is using census data an effective way to accomplish these goals?  This is a sort of market research question that could be answered in a project like this.
+How would a company that makes high-end products identify customers to target for their products, or potentially customer rich markets? Is using census data an effective way to accomplish these goals?  This is a sort of market research question that could be answered in a project like this. Perhaps I may discover other interesting relationships that may be ascertained from the data.
