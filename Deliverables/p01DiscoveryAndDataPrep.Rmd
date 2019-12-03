@@ -1,6 +1,8 @@
 ---
 title: "p01 Discovery and Prep"
-output: html_notebook
+output:
+  html_document:
+    df_print: paged
 ---
 
 

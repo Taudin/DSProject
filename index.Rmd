@@ -12,11 +12,11 @@ In under 250 words give a brief summary of the project so far.
 
 ### 1. Discovery and Data Preparation
 
-Provide a one-sentence introduction with what is covered by the first deliverable along with a link to another html page that gives the details. [p01](Deliverables/p01DiscoveryAndDataPrep.html)
+Cleaning and preprocessing the census data, using some visualizations conducting prelim analysis of predictor variables. [p01](Deliverables/p01DiscoveryAndDataPrep.html)
 
 ### 2. Model Planning and Building
 
-Coming soon...
+Planning the model, exploratory data analysis and investigation of the predictor variables and their relationship with the response variable `income`. [p02](Deliverables/P02ModelPlanningandBuilding.html)
 
 ### 3. Results and Operationalization
 

@@ -133,22 +133,22 @@ for (i in 1:length(summary(adult_train$hours_worked))){
 levels(adult_train$native_country)
 
 #First, we'll define the regions.
-Asia_East <- c("Cambodia", "China", "Hong", "Laos", "Thailand", "Japan", "Taiwan", "Vietnam")
-Asia_Central <- c("India", "Iran")
-Central_America <- c("Cuba", "Guatemala", "Jamaica", "Nicaragua", "Puerto-Rico", "Dominican-Republic", "El-Salvador", "Haiti",
-                     "Honduras", "Mexico", "Trinidad&Tobago")
-South_America <- c("Ecuador", "Peru", "Columbia")
-Europe_West <- c("England", "Germany", "Holand-Netherlands", "Ireland", "France", "Greece", "Italy", "Portugal", "Scotland")
-Europe_East <- c("Poland", "Yugoslavia", "Hungary")
+Asia_East <- c(" Cambodia", " China", " Hong", " Laos", " Thailand", " Japan", " Taiwan", " Vietnam")
+Asia_Central <- c(" India", " Iran")
+Central_America <- c(" Cuba", " Guatemala", " Jamaica", " Nicaragua", " Puerto-Rico", " Dominican-Republic", " El-Salvador", " Haiti",
+                     " Honduras", " Mexico", " Trinidad&Tobago")
+South_America <- c(" Ecuador", " Peru", " Columbia")
+Europe_West <- c(" England", " Germany", " Holand-Netherlands", " Ireland", " France", " Greece", " Italy", " Portugal", " Scotland")
+Europe_East <- c(" Poland", " Yugoslavia", " Hungary")
 
 #Modify the dataframe by adding an additional column named "native_region".
-adult_train <- mutate(adult_train, native_region = ifelse(native_country %in% Asia_East, "East-Asia",
-                                                        ifelse(native_country %in% Asia_Central, "Central-Asia",
-                                                        ifelse(native_country %in% Central_America, "Central-America",
-                                                        ifelse(native_country %in% South_America, "South-America",
-                                                        ifelse(native_country %in% Europe_West, "Europe-West",
-                                                        ifelse(native_country %in% Europe_East, "Europe-East",
-                                                        ifelse(native_country == "United-States", "United-States", "Outlying-US")))))
+adult_train <- mutate(adult_train, native_region = ifelse(native_country %in% Asia_East, " East-Asia",
+                                                        ifelse(native_country %in% Asia_Central, " Central-Asia",
+                                                        ifelse(native_country %in% Central_America, " Central-America",
+                                                        ifelse(native_country %in% South_America, " South-America",
+                                                        ifelse(native_country %in% Europe_West, " Europe-West",
+                                                        ifelse(native_country %in% Europe_East, " Europe-East",
+                                                        ifelse(native_country == " United-States", " United-States", "Outlying-US")))))
                                                                                                            )))
 
 #Transform the new variable, "native_region" into a factor.
@@ -319,6 +319,8 @@ adult_test$workclass <- droplevels(adult_test$workclass)
 #Exporting the Transformed Datasets
  
 #We export the cleaned and preprocessed train and test datasets into the csv files "adult_df.csv" and "test_df.csv" respectively.
+#Change the directory so that the csv's go where they should.
+setwd("CensusData")
 write.csv(adult_train, "adult_df.csv", row.names = FALSE)
 write.csv(adult_test, "test_df.csv", row.names = FALSE)
   
