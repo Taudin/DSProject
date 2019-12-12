@@ -21,7 +21,7 @@ Planning the model, exploratory data analysis and investigation of the predictor
 ### 3. Results and Operationalization
 
 Covariant analysis and fitting a logistic regression model to predict `income` based on some carefully chosen
-predictor variables. A short discussion about operationalization and ethical concerns.[p03](Deliverables/P03ResultsandOperationalization.html)
+predictor variables. A short discussion about operationalization and ethical concerns.[P03](Deliverables/P03ResultsandOperationalization.html)
 
 Coming soon...
 
