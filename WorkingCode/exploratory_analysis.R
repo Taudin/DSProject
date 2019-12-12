@@ -1044,4 +1044,5 @@ chisq.test(adult_data$native_region, adult_data$income)
 chisq.test(adult_data$hours_worked, adult_data$income)
 
 #All of the rest of the Pearson's chi-square tests give very small p-values, which means that it is very
-#unlikely for the considered categorical variables no to be related with income.  
+#unlikely for the considered categorical variables no to be related with income. 
+

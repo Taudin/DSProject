@@ -1,0 +1,368 @@
+---
+title: "P03 Results and Operationalization"
+author: "Kris Walker"
+date: "12/10/2019"
+output: html_document
+---
+
+# Introduction
+
+Our final goal is to build a model that can predict whether the income of a random American adult is less than or greater than 50K a year based on given features such as age, education, occupation, gender, race, etc.
+
+```{r message=FALSE}
+library(ggplot2)
+library(scales)
+library(plyr)
+library(vcd)
+library(ggthemes)
+library(caret)
+library(GoodmanKruskal)
+library(VIF)
+library(ResourceSelection)
+library(randomForest)
+library(e1071)
+library(nnet)
+library(DMwR)
+library(here)
+```
+
+# Reading the Preprocessed Data
+
+We read the train and test data into the `adult_train` and `adult_test` dataframes, respectively:
+```{r}
+setwd("/home/taudin/MiscFiles/Fall19/CSCI385/DSProject/CensusData")
+adult_train <- read.csv("adult_df.csv")
+adult_test <- read.csv("test_df.csv")
+```
+
+# Logistic Regression
+
+Since we are interested in predicting the values of the variable `income`, `income` will be the response variable. It assumes only two values - less than 50K per year or more than 50K per year. We are considering a classification problem. Let $Y_{i}$ be the random variable “income of the ith subject”. Let also $Y_{i}=1$ if income is greater than 50K and $Y_{i}=0$ if income is less than or equal to 50K. Then, $Y_{i} (i=1,2,…,n,)$ where $n=30162$ is the count of observations in the data frame which follows the binomial distribution. Since we have a binary response variable, we use a logistic regression model.
+
+## Fitting the Logistic Regression Model
+
+We start with a list of explanatory variables that consist of all variables except `fnlweight`, `hours_per_week`, `native_country`, `capital_gain`, and `capital_loss`.
+```{r}
+names(adult_train)
+```
+
+```{r}
+covariates <- paste("age", "workclass", "education", "education_num", "marital_status", "occupation",
+                    "relationship", "race", "sex", "native_region", "hours_worked", "cap_gain", "cap_loss",
+                    sep = "+")
+form <- as.formula(paste("income ~", covariates))
+
+glm_model <- glm(formula = form, data = adult_train, family = binomial(link = "logit"), x = TRUE)
+```
+
+### Collinearity of Predictor Variables
+
+Let's investigate if there are collinear predictor variables beginning with a summary of the fit logistic model:
+```{r}
+summary(glm_model)$coefficients[, 1:2]
+```
+
+From the output of `summary(glm.model)` we notice the following warning message: “Coefficients: (1 not defined because of singularities)” and in the coefficients table, the coefficient for the variable `education_num` is NA. This is an indication that the covariate `education_num` is collinear with some other predictor. We have to exclude it from the list of predictor variables and fit the model again. We will use the R function `findLinearCombos()` from the package `caret` to test whether the covariate `education_num` is collinear with some of the other predictors. `findLInearCombos()` returns a list that enumerates these dependencies and a vector of column positions that can be removed to eliminate the linear dependencies:
+```{r}
+findLinearCombos(glm_model$x)
+```
+
+```{r}
+findLinearCombos(glm_model$x)$remove
+```
+
+R found linear dependencies between the covariates and recommends to remove column 24 from the design matrix. Below we identify which predictor corresponds to column 24:
+```{r}
+colnames(glm_model$x)[findLinearCombos(glm_model$x)$remove]
+```
+
+The problematic predictor is `education_num`. The variable `education_num` provides redundant information, same as what's contained in `education`. From the content of `education_num` and `education` we can also see that the two variables are linearly dependent, i.e. collinear. Below we list the unique combinations of values for the variables `education` and `education_num`. The variable `education` has a total of 16 factor levels and we see that each level of `education` corresponds to a number from the variable `education_num`:
+```{r}
+unique_combinations <- unique(adult_train[,c("education", "education_num")])
+
+unique_combinations[order(unique_combinations$education_num),]
+```
+
+We remove the covariate `education_num` and fit the new model `glm_model_wld`, resolving the problem with linearly dependent predictors:
+```{r}
+new_covariates <- paste("age", "workclass", "education","marital_status","occupation", "relationship", "race",                         "sex", "native_region", "hours_worked", "cap_gain", "cap_loss", sep = "+")
+
+new_form <- as.formula(paste("income ~", new_covariates))
+
+glm_model_wld <- glm(formula = new_form,
+                     data = adult_train, 
+                     family = binomial(link = "logit"),
+                     x = TRUE,
+                     y = TRUE)
+```
+
+There aren't linear dependencies between the covariates anymore:
+```{r}
+findLinearCombos(glm_model_wld$x)
+```
+
+### Other Collinearity Detection Diagnostics
+
+Another way to see if there are correlations between covariates is to calculate the Goodman and Kruskal’s tau measure for all pairs of covariates. The Goodman and Kruskal’s tau measures the strength of association between categorical variables, but for discrete numerical variables, the Goodman Kruskal's tau measure treats each value as a separate level of a factor variable. Although not applicable to categorical variables, the standard measure is the Pearson's correlation coefficient.
+
+The Goodman and Kruskal’s tau measure will give us the strength of association between predictors two by two. This coefficient will not help us identify any association if there are 3 or more mutually dependent predictors. The tau measure ranges from 0 to 1; values closer to zero indicate weak association, whereas values closer to 1 indicate strong association. The tau measure is not symmetric. This means that, if A and B are two categorical variables, then
+
+$$τ(A,B)≠τ(B,A)$$.
+                                    
+The function `GKtauDataframe()` returns an object of class `GKtauMatrix` and the plotting can be applied for this object class, allowing us to visualize all pairs of predictors. The plot is in the form of a matrix. Numbers on the diagonal are equal to the number of levels for each categorical variable, while the off-diagonal numbers display the Goodman-Kruskal tau values. Each tau measure is represented by an ellipse, which is a circle for $τ=0$ and degenerates into a straight line for $τ=1$.
+```{r}
+GK_matrix <- GKtauDataframe(adult_train[, c("age", "workclass", "education", "education_num", "marital_status",                                             "occupation", "relationship", "race", "sex", "hours_worked",
+                                            "native_region", "cap_gain", "cap_loss")])
+
+plot(GK_matrix)  
+```
+
+We see that `education` is predictable from `education_num` and vice versa. This confirms our conclusion that the two variables are collinear. All other $τ$ values are close to zero, except for $τ$(relationship, marital_status), $τ$(relationship, sex), and $τ$(marital_status, relationship). This makes sense, because `relationship` can be predicted by `marital_status` and vice versa. However, the association between `relationship` and `sex` isn't really obvious. The tau value of 0.42 suggests that being a female or male can determine the type of relationship that an individial is in. Looking at the percentage of women and men belonging to each category of the factor variable `relationship`, we see that 36% of women are Not-in-family compared to 20% of men, and 25% of women are Unmarried in contrast to only 4% of men.
+```{r}
+tab <- xtabs(~ sex + relationship, data = adult_train)
+
+ptab <- prop.table(tab, 1)
+
+print(format(round(ptab, 2), scientific = FALSE))
+```
+
+We compute the Cramer’s V value for the above pairs of variables. The Cramer’s V is symmetric, i.e. V(relationship, marital_status) = V(marital_status, relationship) so it follows that we need to compute only one of these values. Values we obtained for Cramer’s V indicate strength of association, similar to the those predicted by the Goodman and Kruskal’s tau:
+```{r}
+assocstats(tab)$cramer
+```
+
+```{r}
+tab1 <- xtabs(~ marital_status + relationship, data = adult_train)
+assocstats(tab1)$cramer
+```
+
+## Goodness of Fit of the Model
+
+### Likelihood Ratio Test
+
+Below we display the deviance of the intercept-only model and the deviance of the model `glm_model_wld`:
+```{r}
+summary(glm_model_wld)$null.deviance
+```
+
+```{r}
+summary(glm_model_wld)$deviance
+```
+
+The null deviance shows how well the response is predicted by a model with nothing but an intercept compared to the saturated model. The deviance shows how well the observed response is predicted by a model with a given set of predictors compared to the saturated model.
+
+We apply the likelihood ratio test to compare the goodness of fit of the intercept only model and the fitted model with explanatory variables - `glm_model_wld`. We test the null hypothesis that the null model fits the observed data well and explains about the same amount of variation in the response variable as the model `glm.model.wld` at the 0.05 significance level:
+```{r}
+k <- length(glm_model_wld$coefficients)
+D_M <- glm_model_wld$deviance
+D_0 <- glm_model_wld$null.deviance
+
+1 - pchisq(q = D_0 - D_M, df = k - 1)
+```
+
+The p-value is smaller than 0.05 meaning that we reject the null hypothesis that there is no significant difference between the intercept-only model and the model `glm.model.wld` (model with predictors). This means that at the 5% significance level the null model does not fit the observed data better than the multivariate model `glm.model.wld`.
+
+### Hosmer-Lemeshow Test
+
+The Hosmer-Lemeshow test is a goodness of fit test for logistic regression models with ungrouped (individual) binary data. The idea of the Hosmer-Lemeshow test is to divide the data into subgroups based on the predicted probabilities $π_i$ instead on the values of the explanatory variables. 
+
+We first extract the fitted probabilities.
+```{r}
+head(glm_model_wld$fitted.values)
+```
+
+```{r}
+predicted_probs <- predict(glm_model_wld, type = "response")
+head(predicted_probs)
+```
+
+Next, we need to transform the vector of predicted probabilities $\hat{π}=(\hat{π}_1,\hat{π}_2,…,\hat{π}_n) (n=30162)$ into a binary vector of predicted responses (predicted income). We denote this binary vector with $\mathbf{\hat{y}}=(\hat{y}_1,\hat{y}_2,\dots,\hat{y}_n)$. We construct the vector $\hat{y}$ in the following way:
+
+$$\hat{y}_i=1,\hspace{0.5cm}if\hspace{0.5cm} \hat{π}_i>0.5,$$
+and
+$$\hat{y}_i=0,\hspace{0.5cm} if\hspace{0.5cm} \hat{π}_i≤0.5,$$
+                
+where a value of 1 is equivalent to an yearly income of more than 50K, and a value of 0 means an income of less than 50K.
+
+We take the vector of observed responses (which is a factor variable with two levels - " >50K" and " <=50K“) and create a binary vector:
+```{r}
+observed_values <- ifelse(adult_train$income  == " >50K", 1, 0)
+```
+
+Next we generate the vector of predicted probabilities – `predicted_probs`, and then we use it to create the binary vector `predicted_response`:
+```{r}
+predicted_probs <- predict(glm_model_wld, type = "response")
+predicted_response <- ifelse(predicted_probs > 0.5, 1, 0)
+head(predicted_response, 20)
+```
+
+```{r}
+head(observed_values, 20)
+```
+
+We test the logistic model's accuracy on the training dataset, that is, we calculate the percentage of correctly predicted response values:
+```{r}
+mean(observed_values == predicted_response)
+```
+
+There is a 84.89% match between observed and predicted values of the dependent variable. In order to test the prediction accuracy of the fitted model, we need to test it on a new test data set.
+
+Finally, we proceed with the Hosmer-Lemeshow test. We run the test with different number of groups. We take $g=10,20,50,100,200,300$ and $400$. For small number of groups, we obtain very small p-values, meaning a poor fit of the model, whereas for bigger values of $g$, we obtain larger p-values indicating a good fit of the model. The Hosmer-Lemeshow test has some serious drawbacks, such as the demonstrated dependence of the results on the choice of groups, so we have to interpret the outcome of the test with caution. The final goal we would like to achieve determines the adequacy of the model, such as whether we want the constructed model to match the observed data as close as possible or  predict new observations with high accuracy.Ddespite the lack of fit according to the Hosmer-Lemeshow test (in the case of relatively small number of groups), the fitted model `glm_model_wld` predicts new obervations with high accuracy.
+```{r}
+hoslem.test(observed_values, predicted_response, g = 10)
+```
+
+```{r}
+hoslem.test(observed_values, predicted_response, g = 20)
+```
+
+```{r}
+hoslem.test(observed_values, predicted_response, g = 50)
+```
+
+```{r}
+hoslem.test(observed_values, predicted_response, g = 100)
+```
+
+```{r}
+hoslem.test(observed_values, predicted_response, g = 200)
+```
+
+```{r}
+hoslem.test(observed_values, predicted_response, g = 300)
+```
+  
+```{r}
+hoslem.test(observed_values, predicted_response, g = 400)
+```
+  
+## Explanatory Variable Significance in the Model
+
+### Categorical Variable Significance
+
+We will perform likelihood ratio tests. When we run `anova(glm.model.wld, test=”LRT“)`, the function sequentially compares nested models with increasing complexity against the full model, adding one predictor at a time. The comparisons are done with the help of a likelihood ratio test. The p-values of the tests are calculated using the chi-squared distribution:
+```{r}
+anova(glm_model_wld, test = "LRT")
+```
+
+All explanatory variables are significant and we should definitely keep all of the considered predictors in the model.
+
+### Estimated Model Parameter Significance
+
+Let's look at the significance of each level of the categorical predictors in the fitted model. We have a total of 67 model parameters:
+```{r}
+length(glm_model_wld$coefficients)
+```
+
+We have 12 predictors, most of which are categorical, and dummy variables are created to account for the factor levels of each categorical covariate making the number of model parameters greater than the number of predictors. For each categorical variabe with $l$ levels, $l−1$ dummy variables are created and one level is chosen as the so-called “base” level.
+```{r}
+summary(glm_model_wld)
+```
+
+We can see the significant covariates and levels of categorical covariates for the log odds model based on the corresponding p-values. These p-values are obtained using the Wald test statistic to test the following hypotheses for the model coefficients:
+
+$$H_0: \hat{β}_j=0$$
+
+vs.
+
+$$H_1: \hat{β}_j≠0$$
+
+for all $j=0,1,2,…,k$.
+
+The Wald test is used to evaluate the statistical significance of each coefficient in the fitted logistic model, that is, the test checks the hypothesis that each individual coefficient is zero. If the coefficient of a category is not statistically significant, this does not imply that the whole categorical predictor is unimportant and should be removed from the model. The overall effect of the factor variable is tested by performing a likelihood ratio test as we showed earlier.
+
+In the regression output above, the reported coefficients for each category of a factor variable measure the differences from the base level.
+
+Consider the independent variable `education`. We notice that it is 18 times more likely for an individual to have an income of more than 50K per year if they have a doctorate degree compared to having only a 10th grade diploma. Below we list the levels of education:
+```{r}
+levels(adult_train$education)
+```
+
+```{r}
+summary(adult_train$education)
+```
+
+It is much more likely to earn more than 50K if one has a Bachelor or Masters degree (6.5 times and 9.3 times more likely, respectively) relative to the baseline 10th grade education. The same can be said for Prof-school, Assoc-acdm and Assoc-voc; the odds of having an income of more than 50K are 17 times, 3.5 times and again 3.5 times greater, respectively, compared to the reference category. Furthermore, people with college degree are 3 times more likely to earn more than 50K compared to people with 10th grade education. If an individual has a 1st-4th, 5th-6th, 7th-8th, or 9th grade education, their odds of being paid more than 50K a year are 1.75, 1.5, 1.64 and 1.3 times lower, respectively, than if they had 10th grade education. The result for Preschool is very extreme - the odds of earning more than 50K a year are 1/2.5×10−6=400000 times lower relative to the base level. This number makes sense but is also due to the fact that there are very few people in this category - only 45 people out of the 30162 in the sample. This can be seen also from the insignificant p-value for Preschool, which indicates that the covariate (dummy variable in this case) is not significant to the model at the 5% level. From the p-values we also notice that 1st-4th, 5th-6th, 9th, 11th and 12th are not significant at the 5% level.
+
+Below we show the 95% confidence intervals for all estimated model parameters, along with the number of people belonging to each category of `workclass`:
+```{r}
+summary(adult_train$workclass)
+```
+
+```{r}
+confint.default(glm_model_wld)
+```
+
+The 95% confidence interval for the odds ratio comparing Without-pay versus Federal-gov ranges from $exp(−401.8)→−∞\hspace{0.5cm} to\hspace{0.5cm} exp(374.7)→∞$. This anomaly is due to the fact that there are a very small number of people - only 14, who belong to the category Without-pay, so this association should be interpreted with a lot of caution. The same can be said for the category (dummy variable) Preschool to which belong only 45 people from the study:
+```{r}
+summary(adult_train$education)
+```
+
+## Fitted Model Performance
+
+### Training Data Performance
+
+We calculate the percentage of accurately guessed response variables using the training dataset `adult_train`. Given the vector of predicted probabilities $\mathbf{\hat{π}}$, we calculate a character vector $\mathbf{\hat{y}}=(\hat{y}_1,\hat{y}_2,\dots,\hat{y}_n)$ such that
+
+$$\hat{y}_i=">50K",\hspace{0.5cm}if\hspace{0.5cm}\hat{π}_i>0.5,$$
+
+and
+$$\hat{y}_i="<=50K",\hspace{0.5cm}if\hspace{0.5cm}\hat{π}_i≤0.5$$
+
+Since R codes the factor variables as numbers, the binary response variable is also being coded. Therefore when estimating a logistic regression model we need to know how the binary response variable is being modeled. By default R orders the factor levels alphabetically and the response level modeled in the logistic regression is the highest level. In our case the highest level in the `income` variable is " >50K“:
+```{r}
+attributes(adult_train$income)
+```
+
+The response level being modeled is  >50K, that is, when fitting the logistic regression model, the probability of the income being greater than 50K is calculated. We denote the vector with the predicted income values as `predicted_income_train`:
+```{r}
+predicted_income_train <- ifelse(predicted_probs > 0.5, " >50K", " <=50K")
+ predicted_income_train <- as.factor(predicted_income_train)
+```
+
+There is an 84.89% match between observed and predicted values of `income`:
+```{r}
+mean(predicted_income_train == adult_train$income)
+```
+
+We show the confusion matrix:
+```{r}
+stat_log_train <- confusionMatrix(data = predicted_income_train, reference = adult_train$income,
+                                  positive = levels(adult_train$income)[2])
+stat_log_train
+```
+
+The sensitivity is the proportion of income values equal to  >50K that are accurately identified, and the specificity is the proportion of income values equal to  <=50K that are accurately identified. We see that the sensitivity is 60.31% and the specificity is 93.03%.
+
+### New Observations
+
+We will test how well the fitted model predicts new observations. We will use the provided test dataset and, hence, the corresponding test data frame that we created, `adult_test`.
+```{r}
+predicted_income_test <- predict(glm_model_wld, newdata = adult_test, type = "response") 
+predicted_income_test <- ifelse(predicted_income_test > 0.5, " >50K", " <=50K")
+predicted_income_test <- as.factor(predicted_income_test)
+```
+
+Below we show the respective confusion matrix:
+```{r}
+stat_log_test <- confusionMatrix(data = predicted_income_test, reference = adult_test$income,
+                                 positive = levels(adult_test$income)[2])
+stat_log_test
+```
+
+The model predicts correctly 84.75% of the values of the dependent variable. We consider this a good predictive rate. On the test dataset the sensitivity is 59.57% and the specificity is 92.95%.
+
+Below, the p-values indicate that all predictors in the model are significant and should be retained.
+```{r}
+drop1(glm_model_wld, trace = TRUE, test = "LRT")
+```
+
+## Operationalization 
+
+What we have here is a logistic model that can predict whether an American citizen earns over $50,000 per year rather accurately.  Type of tool may be used in a broad range of operational applications: Retail, finance, tourism, and real estate just to name a few.  As its geographical orientation could change, the model may be adjusted accordingly to account for varying demographics between regions. 
+
+Furthermore, other models that could be built on this data are random forest, support vector machine, XGBoost, and neural networks. The data set is such that it would be interesting to explore and compare results provided by each of these other machine learning algorithms.
+
+## Ethical Concerns
+
+Being that this model is to predict whether or not an individual's annual income exceeds a certain threshold, it is bound to what the cold hard data that feeds it.  As discussed earlier in Part 02 we see that certain groups of people are more likely to earn more than $50,000 annually while others are likely to not earn as much as that.  This doesn't necessarily have to be interpreted as a negative characteristic of what a predictive model like this can do and any implications of what that means. Models like these can help us identify and meet the concerns, interests, or needs of both groups expressed as the binary classification of this model, and generally advise us in making nuanced decisions, being careful to avoid wholesale prejudice that may deny up and comers any positive opportunities.

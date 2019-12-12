@@ -11,7 +11,7 @@ library(knitr)
 
 #Downloading and Reading the Data.
 #First we download the census dataset.  In order to do this we set the working directory
-#setwd("/home/taudin/MiscFiles/Fall19/CSCI385/DSProject/CensusData")
+setwd("/home/taudin/MiscFiles/Fall19/CSCI385/DSProject/CensusData")
 
 #Then we download the file containing the training data.
 #if (!file.exists("./adult.data")){
@@ -25,7 +25,7 @@ library(knitr)
   #download.file(fileUrl, destfile = "./adult.test")
 #}
 
-adult_train <- read.table("CensusData/adult.data", sep = ",", header = FALSE)
+adult_train <- read.table("adult.data", sep = ",", header = FALSE)
 
 #Preliminary look at the data.
 #The number of observations in the adult_train dataframe is:
@@ -72,7 +72,7 @@ get_factor_levels(adult_train)
 #Before we can proceed with the exploratory data analysis and predictive analysis, we have to get rid of the missing values.
 #We read in the data file "adult.data" again, but with the additional option na.strings = "?". This makes sure all ?'s in the data will 
 #be replaced with NA's.
-adult_train <- read.table("CensusData/adult.data", sep = ",", header = FALSE, na.strings = " ?")
+adult_train <- read.table("adult.data", sep = ",", header = FALSE, na.strings = " ?")
 
 colnames(adult_train) <- c("age", "workclass", "fnlwgt", "education", "education_num", "marital_status", "occupation", "relationship",
                           "race", "sex", "capital_gain", "capital_loss", "hours_per_week", "native_country", "income")
@@ -148,7 +148,7 @@ adult_train <- mutate(adult_train, native_region = ifelse(native_country %in% As
                                                         ifelse(native_country %in% South_America, " South-America",
                                                         ifelse(native_country %in% Europe_West, " Europe-West",
                                                         ifelse(native_country %in% Europe_East, " Europe-East",
-                                                        ifelse(native_country == " United-States", " United-States", "Outlying-US")))))
+                                                        ifelse(native_country == " United-States", " United-States", " Outlying-US")))))
                                                                                                            )))
 
 #Transform the new variable, "native_region" into a factor.
@@ -266,7 +266,7 @@ levels(adult_train$workclass)
 
 #The census data comes with a separate test data set, which we use to test out-of-sample accuracy of the constructed predictive models.
 #We repeat the same steps as in the transformation of the training dataframe "adult_train".
-adult_test <- read.table("CensusData/adult.test", sep = ",", header = FALSE, skip = 1, na.strings = " ?")
+adult_test <- read.table("adult.test", sep = ",", header = FALSE, skip = 1, na.strings = " ?")
 colnames(adult_test) <- c("age", "workclass", "fnlwgt", "education", "education_num", "marital_status", "occupation", "relationship",
                           "race", "sex", "capital_gain", "capital_loss", "hours_per_week", "native_country", "income")
 
@@ -280,28 +280,28 @@ head(adult_test, 10)
 #From the display of the first 5 observations of the data, we notice that the names of the levels of the factor variable "income" differ
 #from the respective names in the training data "adult_train" by the symbol ".". We remove the "." from the names of the factor levels
 #of "income" in the test data.
-levels(adult_test$income)[1] <- "<=50K"
-levels(adult_test$income)[2] <- ">50K"
+levels(adult_test$income)[1] <- " <=50K"
+levels(adult_test$income)[2] <- " >50K"
 levels(adult_test$income)
 
 #Just like the training data we create a new variable called "hours_worked".
-adult_test$hours_worked[adult_test$hours_per_week < 40] <- "less_than_40"
-adult_test$hours_worked[adult_test$hours_per_week >= 40 & adult_test$hours_per_week <= 45] <- "between_40_and_45"
-adult_test$hours_worked[adult_test$hours_per_week > 45 & adult_test$hours_per_week <= 60] <- "between_45_and_60"
-adult_test$hours_worked[adult_test$hours_per_week > 60 & adult_test$hours_per_week <= 80] <- "between_60_and_80"
-adult_test$hours_worked[adult_test$hours_per_week > 80] <- "more_than_80"
+adult_test$hours_worked[adult_test$hours_per_week < 40] <- " less_than_40"
+adult_test$hours_worked[adult_test$hours_per_week >= 40 & adult_test$hours_per_week <= 45] <- " between_40_and_45"
+adult_test$hours_worked[adult_test$hours_per_week > 45 & adult_test$hours_per_week <= 60] <- " between_45_and_60"
+adult_test$hours_worked[adult_test$hours_per_week > 60 & adult_test$hours_per_week <= 80] <- " between_60_and_80"
+adult_test$hours_worked[adult_test$hours_per_week > 80] <- " more_than_80"
 
 adult_test$hour_w <- factor(adult_test$hours_worked, ordered = FALSE,
-                            levels = c("less_than_40", "between_40_and_45", "between_45_and_60", "between_60_and_80", "more_than_80"))
+                            levels = c(" less_than_40", " between_40_and_45", " between_45_and_60", " between_60_and_80", " more_than_80"))
 
 #We also have to create the variable "native_region".
-adult_test <- mutate(adult_test, native_region = ifelse(native_country %in% Asia_East, "East-Asia",
-                                                 ifelse(native_country %in% Asia_Central, "Central-Asia",
-                                                 ifelse(native_country %in% Central_America, "Central-America",
-                                                 ifelse(native_country %in% South_America, "South-America",
-                                                 ifelse(native_country %in% Europe_West, "Europe-West",
-                                                 ifelse(native_country %in% Europe_East, "Europe-East",
-                                                 ifelse(native_country == "United-States", "United-States", "Outlying-US"))))))))
+adult_test <- mutate(adult_test, native_region = ifelse(native_country %in% Asia_East, " East-Asia",
+                                                 ifelse(native_country %in% Asia_Central, " Central-Asia",
+                                                 ifelse(native_country %in% Central_America, " Central-America",
+                                                 ifelse(native_country %in% South_America, " South-America",
+                                                 ifelse(native_country %in% Europe_West, " Europe-West",
+                                                 ifelse(native_country %in% Europe_East, " Europe-East",
+                                                 ifelse(native_country == " United-States", " United-States", " Outlying-US"))))))))
 adult_test$native_region <- factor(adult_test$native_region, ordered = FALSE)
 
 #Create the variables "cap_gain" and "cap_loss" .
@@ -320,7 +320,7 @@ adult_test$workclass <- droplevels(adult_test$workclass)
  
 #We export the cleaned and preprocessed train and test datasets into the csv files "adult_df.csv" and "test_df.csv" respectively.
 #Change the directory so that the csv's go where they should.
-setwd("CensusData")
+
 write.csv(adult_train, "adult_df.csv", row.names = FALSE)
 write.csv(adult_test, "test_df.csv", row.names = FALSE)
-  
+setwd("/home/taudin/MiscFiles/Fall19/CSCI385/DSProject")  
